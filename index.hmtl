@@ -19,7 +19,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
@@ -76,6 +76,66 @@
             margin-top: 10px;
         }
         
+        .refresh-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .refresh-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* Tabs */
+        .tabs {
+            background: white;
+            border-radius: 15px;
+            padding: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .tab:hover {
+            background: #f3f4f6;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Cards */
         .cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -129,6 +189,7 @@
             color: #1e40af;
         }
         
+        /* Table */
         .table-container {
             background: white;
             border-radius: 15px;
@@ -174,23 +235,6 @@
             border-bottom: none;
         }
         
-        .refresh-btn {
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 10px;
-        }
-        
-        .refresh-btn:hover {
-            background: #667eea;
-            color: white;
-        }
-        
         .error-message {
             background: #fee2e2;
             border: 2px solid #ef4444;
@@ -198,6 +242,19 @@
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+        
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
         }
     </style>
 </head>
@@ -219,28 +276,56 @@
         
         <div id="errorContainer"></div>
         
-        <div class="cards" id="cards"></div>
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('genel')">📈 Genel Bakış</button>
+            <button class="tab" onclick="switchTab('urunler')">📦 Ürünler</button>
+            <button class="tab" onclick="switchTab('arge')">🔧 Ar-Ge Tadilat İstekleri</button>
+        </div>
         
-        <div class="table-container">
-            <h2 class="table-title">📋 Tüm Veriler</h2>
-            <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th>Yükleniyor...</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Veriler yükleniyor...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Genel Bakış Tab -->
+        <div id="genel" class="tab-content active">
+            <div class="cards" id="genelCards"></div>
+        </div>
+        
+        <!-- Ürünler Tab -->
+        <div id="urunler" class="tab-content">
+            <div class="table-container">
+                <h2 class="table-title">📦 Ürün Listesi</h2>
+                <div id="urunlerTable"></div>
+            </div>
+        </div>
+        
+        <!-- Ar-Ge Tab -->
+        <div id="arge" class="tab-content">
+            <div class="table-container">
+                <h2 class="table-title">🔧 Ar-Ge Tadilat İstekleri</h2>
+                <div id="argeTable"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        // BURAYA KENDI URL'NİZİ YAPISTIRIN
+        // BURAYA KENDI APPS SCRIPT URL'NİZİ YAPISTIRIN
         const API_URL = 'https://script.google.com/macros/s/AKfycbx3bS9PQHFGDhHcSpPwNCpoAFDDkk6OwaDe31QieYrhR53_PWV5V60HMdshcd8zk1Id/exec';
+        
+        let dashboardData = {};
+        
+        function switchTab(tabName) {
+            // Tüm tabları gizle
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Tüm tab butonlarını pasif yap
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Seçili tabı göster
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
         
         function updateStatus(type, text) {
             const status = document.getElementById('status');
@@ -264,14 +349,46 @@
         }
         
         function createCard(title, value, status) {
-            const statusClass = status.toLowerCase().replace('ı', 'i').replace(' ', '');
+            const statusClass = (status || '').toLowerCase().replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/ /g, '');
             return `
                 <div class="card">
                     <div class="card-title">${title}</div>
-                    <div class="card-value">${value.toLocaleString('tr-TR')}</div>
-                    <span class="card-status ${statusClass}">${status}</span>
+                    <div class="card-value">${typeof value === 'number' ? value.toLocaleString('tr-TR') : value}</div>
+                    ${status ? `<span class="card-status ${statusClass}">${status}</span>` : ''}
                 </div>
             `;
+        }
+        
+        function createTable(data, title) {
+            if (!data || data.length === 0) {
+                return `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <p>Henüz veri yok</p>
+                    </div>
+                `;
+            }
+            
+            const headers = Object.keys(data[0]);
+            
+            let html = '<table><thead><tr>';
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            data.forEach(row => {
+                html += '<tr>';
+                headers.forEach(header => {
+                    html += `<td>${row[header] || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            return html;
         }
         
         async function fetchData() {
@@ -291,40 +408,21 @@
                     throw new Error(result.error || 'Bilinmeyen hata');
                 }
                 
-                const data = result.data;
+                dashboardData = result.data;
                 
-                if (!data || data.length < 2) {
-                    throw new Error('Sheets\'te yeterli veri yok');
+                // Genel kartları oluştur
+                if (dashboardData.genel && dashboardData.genel.length > 0) {
+                    const cardsHtml = dashboardData.genel.map(item => {
+                        return createCard(item.isim || item.metrik, item.deger, item.durum);
+                    }).join('');
+                    document.getElementById('genelCards').innerHTML = cardsHtml;
                 }
                 
-                // Header ve data ayır
-                const headers = data[0];
-                const rows = data.slice(1);
+                // Ürünler tablosunu oluştur
+                document.getElementById('urunlerTable').innerHTML = createTable(dashboardData.urunler, 'Ürünler');
                 
-                // Kartları oluştur
-                const cardsHtml = rows.map(row => {
-                    return createCard(row[0], row[1], row[2] || 'N/A');
-                }).join('');
-                
-                document.getElementById('cards').innerHTML = cardsHtml;
-                
-                // Tabloyu oluştur
-                let tableHtml = '<thead><tr>';
-                headers.forEach(header => {
-                    tableHtml += `<th>${header}</th>`;
-                });
-                tableHtml += '</tr></thead><tbody>';
-                
-                rows.forEach(row => {
-                    tableHtml += '<tr>';
-                    row.forEach(cell => {
-                        tableHtml += `<td>${cell}</td>`;
-                    });
-                    tableHtml += '</tr>';
-                });
-                
-                tableHtml += '</tbody>';
-                document.getElementById('dataTable').innerHTML = tableHtml;
+                // Ar-Ge tablosunu oluştur
+                document.getElementById('argeTable').innerHTML = createTable(dashboardData.arge, 'Ar-Ge');
                 
                 // Durumu güncelle
                 updateStatus('', 'Bağlı ✓');
