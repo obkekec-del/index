@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #10b981;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status.loading {
+            background: #f59e0b;
+        }
+        
+        .status.error {
+            background: #ef4444;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .last-update {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .card-title {
+            color: #666;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        
+        .card-value {
+            color: #333;
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .card-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .card-status.aktif {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .card-status.tamamlandi {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-x: auto;
+        }
+        
+        .table-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        
+        table td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            color: #333;
+        }
+        
+        table tr:hover {
+            background: #f9fafb;
+        }
+        
+        table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .refresh-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .refresh-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Google Sheets Dashboard</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span class="status" id="status">
+                    <span class="dot"></span>
+                    <span id="statusText">Bağlanıyor...</span>
+                </span>
+                <div>
+                    <p class="last-update" id="lastUpdate">Son güncelleme: Henüz yok</p>
+                    <button class="refresh-btn" onclick="fetchData()">🔄 Yenile</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="errorContainer"></div>
+        
+        <div class="cards" id="cards"></div>
+        
+        <div class="table-container">
+            <h2 class="table-title">📋 Tüm Veriler</h2>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Yükleniyor...</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Veriler yükleniyor...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // BURAYA KENDI URL'NİZİ YAPISTIRIN
+        const API_URL = 'https://script.google.com/macros/s/AKfycbx3bS9PQHFGDhHcSpPwNCpoAFDDkk6OwaDe31QieYrhR53_PWV5V60HMdshcd8zk1Id/exec';
+        
+        function updateStatus(type, text) {
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            status.className = 'status ' + type;
+            statusText.textContent = text;
+        }
+        
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `
+                <div class="error-message">
+                    <strong>❌ Hata:</strong> ${message}
+                </div>
+            `;
+        }
+        
+        function clearError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+        
+        function createCard(title, value, status) {
+            const statusClass = status.toLowerCase().replace('ı', 'i').replace(' ', '');
+            return `
+                <div class="card">
+                    <div class="card-title">${title}</div>
+                    <div class="card-value">${value.toLocaleString('tr-TR')}</div>
+                    <span class="card-status ${statusClass}">${status}</span>
+                </div>
+            `;
+        }
+        
+        async function fetchData() {
+            updateStatus('loading', 'Yükleniyor...');
+            clearError();
+            
+            try {
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error('Veri çekilemedi (HTTP ' + response.status + ')');
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Bilinmeyen hata');
+                }
+                
+                const data = result.data;
+                
+                if (!data || data.length < 2) {
+                    throw new Error('Sheets\'te yeterli veri yok');
+                }
+                
+                // Header ve data ayır
+                const headers = data[0];
+                const rows = data.slice(1);
+                
+                // Kartları oluştur
+                const cardsHtml = rows.map(row => {
+                    return createCard(row[0], row[1], row[2] || 'N/A');
+                }).join('');
+                
+                document.getElementById('cards').innerHTML = cardsHtml;
+                
+                // Tabloyu oluştur
+                let tableHtml = '<thead><tr>';
+                headers.forEach(header => {
+                    tableHtml += `<th>${header}</th>`;
+                });
+                tableHtml += '</tr></thead><tbody>';
+                
+                rows.forEach(row => {
+                    tableHtml += '<tr>';
+                    row.forEach(cell => {
+                        tableHtml += `<td>${cell}</td>`;
+                    });
+                    tableHtml += '</tr>';
+                });
+                
+                tableHtml += '</tbody>';
+                document.getElementById('dataTable').innerHTML = tableHtml;
+                
+                // Durumu güncelle
+                updateStatus('', 'Bağlı ✓');
+                document.getElementById('lastUpdate').textContent = 
+                    'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
+                
+            } catch (error) {
+                updateStatus('error', 'Bağlantı Hatası');
+                showError(error.message);
+                console.error('Hata:', error);
+            }
+        }
+        
+        // Sayfa yüklendiğinde veriyi çek
+        fetchData();
+        
+        // Her 30 saniyede bir otomatik güncelle
+        setInterval(fetchData, 30000);
+    </script>
+</body>
+</html>
